@@ -52,8 +52,8 @@ PUB_ALGS[] = {
 	"unknown(pub 15)",
 	"ElGamal Encrypt-Only(pub 16)",
 	"DSA Digital Signature Algorithm(pub 17)",
-	"Reserved for Elliptic Curve(pub 18)",
-	"Reserved for ECDSA(pub 19)",
+	"ECDH Encrypt(pub 18)",
+	"ECDSA Digital Signature Algorithm(pub 19)",
 	"Reserved formerly ElGamal Encrypt or Sign(pub 20)",
 	"Reserved for Diffie-Hellman (pub 21)",
 };
@@ -392,6 +392,80 @@ multi_precision_integer(string str)
 	printf("\n");
 }
 
+#define CURVE_OID_MAX_LEN 10
+private struct {
+  unsigned char oid[CURVE_OID_MAX_LEN];
+  string name;
+} CURVE_OIDS[] = {
+  {{ 8, 0x2a, 0x86, 0x48, 0xce, 0x3d, 3, 1, 7 }, "NIST P-256" },
+  {{ 5, 0x2b, 0x81, 4, 0, 0x22 }, "NIST P-384" },
+  {{ 5, 0x2b, 0x81, 4, 0, 0x23 }, "NIST P-521" },
+  {{ 9, 0x2b, 0x24, 3, 3, 2, 8, 1, 1, 7 }, "brainpoolP256r1" },
+  {{ 9, 0x2b, 0x24, 3, 3, 2, 8, 1, 1, 11 }, "brainpoolP384r1" },
+  {{ 9, 0x2b, 0x24, 3, 3, 2, 8, 1, 1, 13 }, "brainpoolP512r1" },
+  {{ 0 }, 0 }
+};
+
+public void
+ec_curve_name(void)
+{
+	int len = Getc();
+	if (len > 0 && len <= CURVE_OID_MAX_LEN) {
+		int i;
+		unsigned char oid[CURVE_OID_MAX_LEN];
+		oid[0] = len;
+
+		for (i = 0; i < len; ++ i)
+			oid[i + 1] = Getc();
+		for (i = 0; CURVE_OIDS[i].name; ++ i) {
+			if (memcmp(oid, CURVE_OIDS[i].oid, len + 1) == 0) {
+				printf("\tECC Curve %s\n", CURVE_OIDS[i].name);
+				return;
+			}
+		}
+
+		printf("\tECC Curve %d", len);
+		for (i = 0; i < len; ++ i)
+			printf(" %X", (int)oid[i + 1]);
+		printf("\n");
+	} else {
+		printf("\tUnknown ECC Curve OID length %d\n", len);
+	}
+}
+
+public void
+ec_point(string str)
+{
+	int tag;
+        int bytes;
+        int bits = Getc() * 256;
+        bits += Getc();
+        bytes = (bits + 7) / 8;
+		
+	tag = Getc();
+	bytes --;
+
+	if (tag == 4 && bytes % 2 == 0) {
+	  	bits = bytes / 2 * 8;
+		printf("\t%s:\n", str);
+		if (iflag) {
+			printf("\t\tX(%d bits) - ", bits);
+			dump(bytes/2);
+			printf("\n");
+
+			printf("\t\tY(%d bits) - ", bits);
+			dump(bytes/2);
+			printf("\n");
+		} else {
+			printf("\t\tX(%d bits) - ...\n", bits);
+			printf("\t\tY(%d bits) - ...\n", bits);
+			skip(bytes);
+		}
+	} else {
+		printf("\t%s - unexpected tag %d\n", str, tag);
+		skip(bytes);
+	}
+}
 
 /*
  * Copyright (C) 1998 Kazuhiko Yamamoto

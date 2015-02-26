@@ -60,6 +60,21 @@ Public_Key_Encrypted_Session_Key_Packet(int len)
 		multi_precision_integer("DSA ?");
 		multi_precision_integer("DSA ?");
 		break;
+	case 18:
+		ec_point("ECDH point");
+		{
+			int key_len = Getc();
+
+			printf("\tSymmetric Key (%d bits) - ", (int)key_len * 8);
+			if (iflag) {
+				dump(key_len);
+			} else {
+				printf("...");
+				skip(key_len);
+			}
+			printf("\n");
+		}
+		break;
 	default:
 		printf("\t\tunknown(pub %d)\n", pub);
 		skip(len - 10);
